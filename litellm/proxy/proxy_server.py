@@ -2917,7 +2917,17 @@ async def async_data_generator(
                 user_api_key_dict=user_api_key_dict, response=chunk
             )
 
-            if isinstance(chunk, BaseModel):
+            try:
+                if isinstance(chunk, BaseModel):
+                    chunk = chunk.model_dump_json(exclude_none=True, exclude_unset=True)
+            except Exception as e:
+                # Add fix to prevent serialization error when "chunk" is made up of
+                # nested pydantic models. Original issue raised in
+                # https://github.com/pydantic/pydantic/issues/7713, with suggested fix
+                # provided by https://github.com/colinstephen
+                data_json_from_dicts = json.dumps(chunk, default=lambda x: vars(x))
+                data_obj = json.loads(data_json_from_dicts)
+                chunk = type(chunk)(**data_obj)
                 chunk = chunk.model_dump_json(exclude_none=True, exclude_unset=True)
 
             try:
